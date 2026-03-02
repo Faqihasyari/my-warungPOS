@@ -3,20 +3,39 @@ import { prisma } from "@/app/lib/prisma";
 
 export async function DELETE(
   req: Request,
-  { params }: { params: { id: string } },
+  context: { params: Promise<{ id: string }> },
 ) {
-  const { id } = params;
+  try {
+    const { id } = await context.params; // ✅ WAJIB AWAIT
 
-  await prisma.product.update({
-    where: { id },
-    data: {
-      isActive: false,
-    },
-  });
+    const product = await prisma.product.findUnique({
+      where: { id },
+    });
 
-  return NextResponse.json({ message: "Product deactivated" });
+    if (!product) {
+      return NextResponse.json(
+        { message: "Produk tidak ditemukan" },
+        { status: 404 },
+      );
+    }
+
+    await prisma.product.update({
+      where: { id },
+      data: { isActive: false },
+    });
+
+    return NextResponse.json(
+      { message: "Product deactivated" },
+      { status: 200 },
+    );
+  } catch (error) {
+    console.error("DELETE ERROR:", error);
+    return NextResponse.json(
+      { message: "Gagal menghapus produk" },
+      { status: 500 },
+    );
+  }
 }
-
 export async function PUT(
   req: Request,
   context: { params: Promise<{ id: string }> },
