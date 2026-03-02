@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { prisma } from "@/app/lib/prisma";
+import { authOptions } from "../auth/[...nextauth]/route";
 
 type ItemInput = {
   productId: string;
@@ -12,7 +12,10 @@ export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
 
   if (!session?.user) {
-    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    return NextResponse.json(
+      { message: "Unauthorized" },
+      { status: 401 }
+    );
   }
 
   const {
@@ -28,14 +31,14 @@ export async function POST(req: Request) {
   if (role !== "CASHIER") {
     return NextResponse.json(
       { message: "Only cashier can create transaction" },
-      { status: 403 },
+      { status: 403 }
     );
   }
 
   if (!storeId) {
     return NextResponse.json(
       { message: "Store not assigned" },
-      { status: 400 },
+      { status: 400 }
     );
   }
 
@@ -43,14 +46,17 @@ export async function POST(req: Request) {
   const items: ItemInput[] = body.items;
 
   if (!items || items.length === 0) {
-    return NextResponse.json({ message: "No items provided" }, { status: 400 });
+    return NextResponse.json(
+      { message: "No items provided" },
+      { status: 400 }
+    );
   }
 
   try {
-    const result = await prisma.$transaction(async (tx) => {
+    const transaction = await prisma.$transaction(async (tx) => {
       let total = 0;
 
-      // 1️⃣ Ambil semua produk yang dibeli
+      // 🔹 Ambil semua produk sesuai store
       const products = await tx.product.findMany({
         where: {
           id: { in: items.map((i) => i.productId) },
@@ -62,21 +68,27 @@ export async function POST(req: Request) {
         throw new Error("Some products not found");
       }
 
-      // 2️⃣ Hitung total & cek stok
+      // 🔹 Cek stok & hitung total
       for (const item of items) {
-        const product = products.find((p) => p.id === item.productId);
+        const product = products.find(
+          (p) => p.id === item.productId
+        );
 
-        if (!product) throw new Error("Product not found");
+        if (!product) {
+          throw new Error("Product not found");
+        }
 
         if (product.stock < item.quantity) {
-          throw new Error(`Stock not enough for product ${product.name}`);
+          throw new Error(
+            `Stock not enough for ${product.name}`
+          );
         }
 
         total += product.price * item.quantity;
       }
 
-      // 3️⃣ Buat Transaction
-      const transaction = await tx.transaction.create({
+      // 🔹 Buat transaksi utama
+      const createdTransaction = await tx.transaction.create({
         data: {
           total,
           storeId,
@@ -84,37 +96,46 @@ export async function POST(req: Request) {
         },
       });
 
-      // 4️⃣ Buat TransactionItem + Kurangi stok
+      // 🔹 Buat TransactionItem + Kurangi stok
       for (const item of items) {
-        const product = await prisma.product.findUnique({
-          where: { id: item.productId },
+        const product = products.find(
+          (p) => p.id === item.productId
+        );
+
+        if (!product) continue;
+
+        // Simpan item transaksi
+        await tx.transactionItem.create({
+          data: {
+            transactionId: createdTransaction.id,
+            productId: item.productId,
+            quantity: item.quantity,
+            price: product.price,
+          },
         });
 
-        if (!product) {
-          return NextResponse.json(
-            { message: "Produk tidak ditemukan" },
-            { status: 400 },
-          );
-        }
-
-        if (item.quantity > product.stock) {
-          return NextResponse.json(
-            { message: `Stok ${product.name} tidak cukup` },
-            { status: 400 },
-          );
-        }
+        // 🔥 Kurangi stok
+        await tx.product.update({
+          where: { id: item.productId },
+          data: {
+            stock: {
+              decrement: item.quantity,
+            },
+          },
+        });
       }
 
-      return transaction;
+      return createdTransaction;
     });
 
-    return NextResponse.json(result, { status: 201 });
+    return NextResponse.json(transaction, { status: 201 });
+
   } catch (error) {
     console.error("TRANSACTION ERROR:", error);
 
     return NextResponse.json(
       { message: (error as Error).message },
-      { status: 400 },
+      { status: 400 }
     );
   }
 }
