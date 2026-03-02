@@ -8,7 +8,10 @@ export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
 
   if (!session?.user) {
-    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    return NextResponse.json(
+      { message: "Unauthorized" },
+      { status: 401 }
+    );
   }
 
   const { role, storeId } = session.user as {
@@ -25,13 +28,18 @@ export async function GET(req: Request) {
   const skip = (page - 1) * limit;
 
   const whereCondition: Prisma.ProductWhereInput = {
-    ...(role !== "OWNER" && { storeId: storeId ?? undefined }),
-    name: search
-      ? {
-          contains: search,
-          mode: "insensitive",
-        }
-      : undefined,
+    isActive: true, // 🔥 WAJIB ADA
+
+    ...(role !== "OWNER" && {
+      storeId: storeId ?? undefined,
+    }),
+
+    ...(search && {
+      name: {
+        contains: search,
+        mode: "insensitive",
+      },
+    }),
   };
 
   const [products, total] = await Promise.all([
