@@ -50,6 +50,7 @@ model Product {
   pcsPerDus Int?
   storeId   String
   store     Store    @relation(fields: [storeId], references: [id])
+  isActive    Boolean  @default(true)
   createdAt DateTime @default(now())
 
   transtractionItem TransactionItem[]
