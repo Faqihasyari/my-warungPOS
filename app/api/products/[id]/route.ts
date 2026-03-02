@@ -3,23 +3,18 @@ import { prisma } from "@/app/lib/prisma";
 
 export async function DELETE(
   req: Request,
-  context: { params: Promise<{ id: string }> },
+  { params }: { params: { id: string } },
 ) {
-  const { id } = await context.params;
+  const { id } = params;
 
-  try {
-    await prisma.product.update({
-      where: { id },
-      data: {
-        isActive: false,
-      },
-    });
+  await prisma.product.update({
+    where: { id },
+    data: {
+      isActive: false,
+    },
+  });
 
-    return NextResponse.json({ message: "Deleted" });
-  } catch (error) {
-    console.error(error);
-    return NextResponse.json({ message: "Failed to delete" }, { status: 500 });
-  }
+  return NextResponse.json({ message: "Product deactivated" });
 }
 
 export async function PUT(
