@@ -31,7 +31,9 @@ export default function ProductsPage() {
 
   useEffect(() => {
     async function load() {
-      const res = await fetch(`/api/products?page=${page}&limit=${limit}&search=${search}`);
+      const res = await fetch(
+        `/api/products?page=${page}&limit=${limit}&search=${search}`,
+      );
       const data = await res.json();
       setProducts(data.data);
       setTotalPages(data.totalPages);
@@ -41,9 +43,23 @@ export default function ProductsPage() {
 
   async function handleDelete(id: string) {
     if (!confirm("Yakin mau hapus produk ini?")) return;
-    await fetch(`/api/products/${id}`, { method: "DELETE" });
-    const res = await fetch(`/api/products?page=${page}&limit=${limit}`);
-    const data = await res.json();
+
+    const res = await fetch(`/api/products/${id}`, {
+      method: "DELETE",
+    });
+
+    if (!res.ok) {
+      const error = await res.json();
+      alert(error.message || "Gagal menghapus produk");
+      return;
+    }
+
+    // reload data setelah sukses
+    const reload = await fetch(
+      `/api/products?page=${page}&limit=${limit}&search=${search}`,
+    );
+
+    const data = await reload.json();
     setProducts(data.data);
     setTotalPages(data.totalPages);
   }
@@ -470,7 +486,10 @@ export default function ProductsPage() {
               className="search-input"
               placeholder="Cari produk..."
               value={search}
-              onChange={(e) => { setPage(1); setSearch(e.target.value); }}
+              onChange={(e) => {
+                setPage(1);
+                setSearch(e.target.value);
+              }}
             />
           </div>
           {products.length > 0 && (
@@ -483,7 +502,9 @@ export default function ProductsPage() {
           {products.length === 0 ? (
             <div className="empty-state">
               <div className="empty-icon">📦</div>
-              {search ? `Produk "${search}" tidak ditemukan` : "Belum ada produk"}
+              {search
+                ? `Produk "${search}" tidak ditemukan`
+                : "Belum ada produk"}
             </div>
           ) : (
             <>
@@ -503,30 +524,45 @@ export default function ProductsPage() {
                   <tbody>
                     {products.map((p) => {
                       const stockNum = p.stock;
-                      const stockClass = stockNum === 0 ? "stock-out" : stockNum < 10 ? "stock-low" : "stock-ok";
+                      const stockClass =
+                        stockNum === 0
+                          ? "stock-out"
+                          : stockNum < 10
+                            ? "stock-low"
+                            : "stock-ok";
                       return (
                         <tr key={p.id}>
                           <td className="product-name-cell">{p.name}</td>
-                          <td className="product-price-cell">Rp {p.price.toLocaleString("id-ID")}</td>
+                          <td className="product-price-cell">
+                            Rp {p.price.toLocaleString("id-ID")}
+                          </td>
                           <td>
                             <span className={`stock-tag ${stockClass}`}>
                               {formatStock(p.stock, p.pcsPerDus)}
                             </span>
                           </td>
                           <td>
-                            {p.store
-                              ? <span className="store-tag">{p.store.name}</span>
-                              : <span style={{ color: "var(--text3)" }}>—</span>}
+                            {p.store ? (
+                              <span className="store-tag">{p.store.name}</span>
+                            ) : (
+                              <span style={{ color: "var(--text3)" }}>—</span>
+                            )}
                           </td>
                           <td className="desc-cell" title={p.description}>
                             {p.description || "—"}
                           </td>
                           <td>
                             <div className="action-cell">
-                              <Link href={`/dashboard/products/edit/${p.id}`} className="btn-edit">
+                              <Link
+                                href={`/dashboard/products/edit/${p.id}`}
+                                className="btn-edit"
+                              >
                                 Edit
                               </Link>
-                              <button className="btn-delete" onClick={() => handleDelete(p.id)}>
+                              <button
+                                className="btn-delete"
+                                onClick={() => handleDelete(p.id)}
+                              >
                                 Hapus
                               </button>
                             </div>
@@ -542,24 +578,39 @@ export default function ProductsPage() {
               <div className="mobile-list">
                 {products.map((p) => {
                   const stockNum = p.stock;
-                  const stockClass = stockNum === 0 ? "stock-out" : stockNum < 10 ? "stock-low" : "stock-ok";
+                  const stockClass =
+                    stockNum === 0
+                      ? "stock-out"
+                      : stockNum < 10
+                        ? "stock-low"
+                        : "stock-ok";
                   return (
                     <div key={p.id} className="mobile-card">
                       <div className="mobile-card-top">
                         <span className="mobile-product-name">{p.name}</span>
-                        <span className="mobile-product-price">Rp {p.price.toLocaleString("id-ID")}</span>
+                        <span className="mobile-product-price">
+                          Rp {p.price.toLocaleString("id-ID")}
+                        </span>
                       </div>
                       <div className="mobile-card-meta">
                         <span className={`stock-tag ${stockClass}`}>
                           {formatStock(p.stock, p.pcsPerDus)}
                         </span>
-                        {p.store && <span className="store-tag">{p.store.name}</span>}
+                        {p.store && (
+                          <span className="store-tag">{p.store.name}</span>
+                        )}
                       </div>
                       <div className="mobile-card-actions">
-                        <Link href={`/dashboard/products/edit/${p.id}`} className="btn-edit">
+                        <Link
+                          href={`/dashboard/products/edit/${p.id}`}
+                          className="btn-edit"
+                        >
                           Edit
                         </Link>
-                        <button className="btn-delete" onClick={() => handleDelete(p.id)}>
+                        <button
+                          className="btn-delete"
+                          onClick={() => handleDelete(p.id)}
+                        >
                           Hapus
                         </button>
                       </div>
